@@ -260,15 +260,21 @@ class MageAustralia_CacheBuster_Helper_Data extends Mage_Core_Helper_Abstract
             return $this->_versionCache[$cacheKey] = null;
         }
 
-        // Block path-traversal attempts so a crafted URL can't `stat` files
-        // outside the asset directory.
+        // Reject any `..` segment in the relative path - that's the only
+        // way a URL-derived path could legitimately escape $baseDir.
+        // (Browsers normalise `..` out of URLs before sending, so this is
+        // belt-and-braces against a hand-crafted curl.)
+        // We deliberately do NOT compare realpath($baseDir) to realpath($candidate)
+        // here: on installs that symlink subdirs of `public/media/` (catalog,
+        // wysiwyg, etc.) into a sibling production media tree, $real ends up
+        // outside $realBase even though the file is legitimately ours.
+        if (preg_match('~(?:^|/)\.\.(?:/|$)~', $relativePath)) {
+            return $this->_versionCache[$cacheKey] = null;
+        }
+
         $candidate = $baseDir . DIRECTORY_SEPARATOR . $relativePath;
         $real      = realpath($candidate);
         if ($real === false || !is_file($real)) {
-            return $this->_versionCache[$cacheKey] = null;
-        }
-        $realBase = realpath($baseDir);
-        if ($realBase === false || !str_starts_with($real, $realBase . DIRECTORY_SEPARATOR)) {
             return $this->_versionCache[$cacheKey] = null;
         }
 
