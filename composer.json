@@ -1,0 +1,20 @@
+{
+    "name": "mageaustralia/maho-module-cachebuster",
+    "license": "OSL-3.0",
+    "type": "maho-module",
+    "description": "Query-string cache buster for Maho. Post-processes the HTML response and appends `?v=<filemtime>` to same-origin /skin/, /js/, /media/ URLs so browsers and CDNs refetch assets when the underlying files change. No nginx/apache rewrite rules required.",
+    "keywords": ["maho", "cache", "cache-buster", "asset-versioning", "performance", "cdn"],
+    "authors": [
+        {
+            "name": "Mage Australia",
+            "homepage": "https://mageaustralia.com.au"
+        }
+    ],
+    "require": {
+        "php": ">=8.3",
+        "mahocommerce/maho": "^26.5"
+    },
+    "extra": {
+        "maho-module-dir": "app/code/community/MageAustralia/CacheBuster"
+    }
+}

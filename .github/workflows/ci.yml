@@ -1,0 +1,10 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    uses: mageaustralia/maho-ci/.github/workflows/module-checks.yml@main

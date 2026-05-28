@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Maho
+ *
+ * @package    MageAustralia_CacheBuster
+ * @copyright  Copyright (c) 2026 Mage Australia
+ * @license    https://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ */
+-->
+<config>
+    <modules>
+        <MageAustralia_CacheBuster>
+            <version>1.0.0</version>
+        </MageAustralia_CacheBuster>
+    </modules>
+
+    <global>
+        <helpers>
+            <mageaustralia_cachebuster>
+                <class>MageAustralia_CacheBuster_Helper</class>
+            </mageaustralia_cachebuster>
+        </helpers>
+        <models>
+            <mageaustralia_cachebuster>
+                <class>MageAustralia_CacheBuster_Model</class>
+            </mageaustralia_cachebuster>
+        </models>
+        <events>
+            <http_response_send_before>
+                <observers>
+                    <mageaustralia_cachebuster>
+                        <type>singleton</type>
+                        <class>mageaustralia_cachebuster/observer</class>
+                        <method>bustResponse</method>
+                    </mageaustralia_cachebuster>
+                </observers>
+            </http_response_send_before>
+        </events>
+    </global>
+
+    <adminhtml>
+        <translate>
+            <modules>
+                <MageAustralia_CacheBuster>
+                    <files>
+                        <default>MageAustralia_CacheBuster.csv</default>
+                    </files>
+                </MageAustralia_CacheBuster>
+            </modules>
+        </translate>
+    </adminhtml>
+
+    <default>
+        <mageaustralia_cachebuster>
+            <general>
+                <enabled>0</enabled>
+                <areas>frontend</areas>
+            </general>
+            <paths>
+                <bust_skin>1</bust_skin>
+                <bust_js>1</bust_js>
+                <bust_media>1</bust_media>
+            </paths>
+        </mageaustralia_cachebuster>
+    </default>
+</config>
