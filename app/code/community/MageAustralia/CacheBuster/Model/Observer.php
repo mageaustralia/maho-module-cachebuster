@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+use Maho\Config\Observer as MahoObserver;
+use Maho\Event\Observer;
+
 /**
  * Maho
  *
@@ -29,20 +32,20 @@ declare(strict_types=1);
  */
 class MageAustralia_CacheBuster_Model_Observer
 {
-    #[\Maho\Config\Observer('controller_action_postdispatch', area: 'frontend', type: 'singleton')]
-    #[\Maho\Config\Observer('controller_action_postdispatch', area: 'adminhtml', type: 'singleton')]
-    public function bustResponse(\Maho\Event\Observer $observer): void
+    #[MahoObserver('controller_action_postdispatch', area: 'frontend', type: 'singleton')]
+    #[MahoObserver('controller_action_postdispatch', area: 'adminhtml', type: 'singleton')]
+    public function bustResponse(Observer $observer): void
     {
         try {
             $this->_doBustResponse($observer);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             // Never let a cache-bust failure take down the page. Log and
             // ship the original response untouched.
             Mage::logException($e);
         }
     }
 
-    private function _doBustResponse(\Maho\Event\Observer $observer): void
+    private function _doBustResponse(Observer $observer): void
     {
         /** @var MageAustralia_CacheBuster_Helper_Data $helper */
         $helper = Mage::helper('mageaustralia_cachebuster');
@@ -67,8 +70,11 @@ class MageAustralia_CacheBuster_Model_Observer
             return;
         }
 
-        $body = (string) $response->getBody();
-        if ($body === '') {
+        // Zend's getBody() is typed string|array|null in stubs (the array
+        // branch is only reached with a truthy first argument, which we
+        // don't pass). Narrow to string so the cast below is type-safe.
+        $body = $response->getBody();
+        if (!is_string($body) || $body === '') {
             return;
         }
 

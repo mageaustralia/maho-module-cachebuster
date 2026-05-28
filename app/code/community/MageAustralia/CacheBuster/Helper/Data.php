@@ -47,7 +47,7 @@ class MageAustralia_CacheBuster_Helper_Data extends Mage_Core_Helper_Abstract
      *
      * @var list<string>
      */
-    private const ASSET_TAGS = ['link', 'script', 'img', 'source', 'video', 'audio', 'iframe', 'input', 'track'];
+    private const array ASSET_TAGS = ['link', 'script', 'img', 'source', 'video', 'audio', 'iframe', 'input', 'track'];
 
     /**
      * Per-request memo of filesystem version lookups so the same file is
@@ -129,6 +129,8 @@ class MageAustralia_CacheBuster_Helper_Data extends Mage_Core_Helper_Abstract
     /**
      * Walk the href / src / srcset attributes inside a single tag's
      * attribute string and rewrite each value.
+     *
+     * @param list<string> $bustablePaths
      */
     private function _rewriteAttrs(string $attrs, array $bustablePaths): string
     {
@@ -156,6 +158,8 @@ class MageAustralia_CacheBuster_Helper_Data extends Mage_Core_Helper_Abstract
     /**
      * srcset value is "url1 descriptor1, url2 descriptor2, ...". Bust each
      * URL individually; leave the descriptors alone.
+     *
+     * @param list<string> $bustablePaths
      */
     private function _bustSrcset(string $srcset, array $bustablePaths): string
     {
@@ -186,6 +190,8 @@ class MageAustralia_CacheBuster_Helper_Data extends Mage_Core_Helper_Abstract
      *   - its path doesn't contain a bustable prefix
      *   - it's a Maho merged-CSS/JS bundle (already content-hashed)
      *   - the referenced file doesn't exist on disk
+     *
+     * @param list<string>|null $bustablePaths
      */
     public function bustUrl(string $url, ?array $bustablePaths = null): string
     {
