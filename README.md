@@ -32,6 +32,8 @@ If your install drops modules into `app/code/community/` directly rather than vi
 
 **System > Configuration > Advanced > Cache Buster**.
 
+![Cache Buster admin config page](docs/screenshots/admin-config.png)
+
 | Group | Field | What it does |
 |---|---|---|
 | General | Enabled | Master switch. Module ships **disabled**  -  flip to Yes after install. |
