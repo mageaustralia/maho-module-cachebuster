@@ -26,17 +26,11 @@
                 <class>MageAustralia_CacheBuster_Model</class>
             </mageaustralia_cachebuster>
         </models>
-        <events>
-            <http_response_send_before>
-                <observers>
-                    <mageaustralia_cachebuster>
-                        <type>singleton</type>
-                        <class>mageaustralia_cachebuster/observer</class>
-                        <method>bustResponse</method>
-                    </mageaustralia_cachebuster>
-                </observers>
-            </http_response_send_before>
-        </events>
+        <!--
+             The observer is registered via #[Maho\Config\Observer] PHP
+             attributes on Model/Observer.php::bustResponse(). Compiled
+             at composer dump-autoload into vendor/composer/maho_attributes.php.
+        -->
     </global>
 
     <adminhtml>

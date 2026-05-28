@@ -11,13 +11,27 @@ declare(strict_types=1);
  */
 
 /**
- * Hooks `http_response_send_before` and post-processes the HTML response
- * body to version-stamp same-origin asset URLs. See Helper/Data.php for
- * the actual rewriting logic.
+ * Hooks `controller_action_postdispatch` and post-processes the HTML
+ * response body to version-stamp same-origin asset URLs. See
+ * Helper/Data.php for the actual rewriting logic.
+ *
+ * Why `controller_action_postdispatch` and not `http_response_send_before`:
+ *   - It fires immediately after the controller action populates the
+ *     response body, but before the response is sent  -  and before any
+ *     downstream cache (FPC, varnish-as-php, etc.) snapshots it.
+ *   - It's a per-action attribute-registered event, which Maho 26+
+ *     compiles into `vendor/composer/maho_attributes.php`. The legacy
+ *     `<events>` XML wiring for response-cycle events is not always
+ *     picked up reliably under the new compiled-attribute dispatcher.
+ *
+ * Run `composer dump-autoload` after installing this module  -  the
+ * #[Observer] attribute is compiled at autoload time, not at runtime.
  */
 class MageAustralia_CacheBuster_Model_Observer
 {
-    public function bustResponse(Varien_Event_Observer $observer): void
+    #[\Maho\Config\Observer('controller_action_postdispatch', area: 'frontend', type: 'singleton')]
+    #[\Maho\Config\Observer('controller_action_postdispatch', area: 'adminhtml', type: 'singleton')]
+    public function bustResponse(\Maho\Event\Observer $observer): void
     {
         try {
             $this->_doBustResponse($observer);
@@ -28,7 +42,7 @@ class MageAustralia_CacheBuster_Model_Observer
         }
     }
 
-    private function _doBustResponse(Varien_Event_Observer $observer): void
+    private function _doBustResponse(\Maho\Event\Observer $observer): void
     {
         /** @var MageAustralia_CacheBuster_Helper_Data $helper */
         $helper = Mage::helper('mageaustralia_cachebuster');
@@ -38,8 +52,12 @@ class MageAustralia_CacheBuster_Model_Observer
             return;
         }
 
-        /** @var Mage_Core_Controller_Response_Http $response */
-        $response = $observer->getEvent()->getResponse();
+        $controller = $observer->getEvent()->getControllerAction();
+        if (!$controller instanceof Mage_Core_Controller_Varien_Action) {
+            return;
+        }
+
+        $response = $controller->getResponse();
         if (!$response instanceof Mage_Core_Controller_Response_Http) {
             return;
         }
@@ -59,19 +77,21 @@ class MageAustralia_CacheBuster_Model_Observer
             return;
         }
 
-        // The Zend response object stores the body in named segments; passing
-        // null as the name replaces the entire body with a single segment.
+        // The Zend response object stores the body in named segments;
+        // passing null as the name replaces the entire body with a single
+        // segment (matches the layout-render default).
         $response->setBody($busted, null);
     }
 
     /**
-     * Inspect the response headers (and the response code) to decide whether
-     * the body should be treated as HTML. Conservative: anything that's not
-     * unambiguously `text/html` is left alone.
+     * Inspect response headers + status to decide whether the body is
+     * HTML. Conservative: anything not unambiguously `text/html` is left
+     * alone. Defaults to true when Content-Type isn't yet set  -  Maho's
+     * normal page render path leaves Content-Type unset until send time,
+     * and the rendered body is HTML by default.
      */
     private function _isHtmlResponse(Mage_Core_Controller_Response_Http $response): bool
     {
-        // 3xx redirects have no useful body.
         $status = (int) $response->getHttpResponseCode();
         if ($status >= 300 && $status < 400) {
             return false;
@@ -87,11 +107,6 @@ class MageAustralia_CacheBuster_Model_Observer
             }
         }
 
-        // No Content-Type header set yet  -  Maho's default for rendered pages
-        // is HTML, so opt in. If a downstream sender overrides Content-Type
-        // after this event, the worst case is a few extra `?v=` query
-        // strings on what turns out to be a non-HTML body  -  still parseable
-        // by browsers, just unnecessary.
         return true;
     }
 }

@@ -18,12 +18,15 @@ Inspired by [gordonknoppe/magento-cachebuster](https://github.com/gordonknoppe/m
 ```bash
 composer config repositories.maho-module-cachebuster vcs https://github.com/mageaustralia/maho-module-cachebuster.git
 COMPOSER_ROOT_VERSION=26.5.x-dev composer require mageaustralia/maho-module-cachebuster:dev-main
+composer dump-autoload -o
 ./maho cache:flush
 ```
 
 The `COMPOSER_ROOT_VERSION` env var lets the `mahocommerce/maho ^26.5` constraint resolve against a `dev-main` checkout of the Maho fork.
 
-If your install drops modules into `app/code/community/` directly rather than via Composer, follow the same symlink + copy pattern the other `mageaustralia/maho-module-*` modules use.
+`composer dump-autoload -o` is required (not optional). The observer registers via a `#[Maho\Config\Observer]` PHP attribute on `Model/Observer.php`; Maho compiles attributes into `vendor/composer/maho_attributes.php` at autoload time, not at runtime. Skip the dump-autoload step and the observer never fires.
+
+If your install drops modules into `app/code/community/` directly rather than via Composer, follow the same symlink + copy pattern the other `mageaustralia/maho-module-*` modules use, and run `composer dump-autoload -o` from the install root.
 
 ## Configure
 

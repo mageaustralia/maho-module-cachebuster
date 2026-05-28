@@ -189,7 +189,10 @@ class MageAustralia_CacheBuster_Helper_Data extends Mage_Core_Helper_Abstract
      */
     public function bustUrl(string $url, ?array $bustablePaths = null): string
     {
-        if ($url === '' || preg_match('#^(data:|mailto:|tel:|javascript:|#)#i', $url)) {
+        // Delimiter is `~` deliberately: the literal `#` (fragment-only URL)
+        // is one of the patterns we want to match, and using `#` as the
+        // regex delimiter would close the pattern early.
+        if ($url === '' || preg_match('~^(data:|mailto:|tel:|javascript:|#)~i', $url)) {
             return $url;
         }
 
@@ -252,7 +255,7 @@ class MageAustralia_CacheBuster_Helper_Data extends Mage_Core_Helper_Abstract
             return $this->_versionCache[$cacheKey];
         }
 
-        $baseDir = (string) Mage::getBaseDir($prefix);
+        $baseDir = $this->_getBaseDirForPrefix($prefix);
         if ($baseDir === '') {
             return $this->_versionCache[$cacheKey] = null;
         }
@@ -271,6 +274,22 @@ class MageAustralia_CacheBuster_Helper_Data extends Mage_Core_Helper_Abstract
 
         $mtime = @filemtime($real);
         return $this->_versionCache[$cacheKey] = ($mtime === false ? null : $mtime);
+    }
+
+    /**
+     * Resolve a URL-path prefix (skin / js / media) to an absolute filesystem
+     * directory. `skin` and `media` are first-class Maho base-dir aliases;
+     * `js` is not, so we derive it from skin's parent (the document root,
+     * which differs across installs - some put assets under `public/`).
+     */
+    private function _getBaseDirForPrefix(string $prefix): string
+    {
+        return match ($prefix) {
+            'skin'  => (string) Mage::getBaseDir('skin'),
+            'media' => (string) Mage::getBaseDir('media'),
+            'js'    => dirname((string) Mage::getBaseDir('skin')) . DIRECTORY_SEPARATOR . 'js',
+            default => '',
+        };
     }
 
     /**
