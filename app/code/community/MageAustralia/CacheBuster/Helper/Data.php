@@ -57,6 +57,13 @@ class MageAustralia_CacheBuster_Helper_Data extends Mage_Core_Helper_Abstract
      */
     private array $_versionCache = [];
 
+    /**
+     * Per-request memo of the store's own asset hosts (see _getOwnHosts).
+     *
+     * @var list<string>|null
+     */
+    private ?array $_ownHosts = null;
+
     public function isEnabled(?int $storeId = null): bool
     {
         return (bool) Mage::getStoreConfigFlag(self::XML_PATH_ENABLED, $storeId);
@@ -111,6 +118,14 @@ class MageAustralia_CacheBuster_Helper_Data extends Mage_Core_Helper_Abstract
         // Match an opening tag whose name is in the allow-list, capturing
         // the attribute payload (everything up to the closing `>`). The
         // optional trailing `/` in self-closing tags is part of $attrs.
+        //
+        // Known limitation: `[^>]*` stops at the first `>`, so a literal `>`
+        // inside an attribute value (e.g. <img alt="a > b" src="...">) ends
+        // the match early and would mangle that tag. This is the standard
+        // regex-vs-HTML caveat; in practice `>` in attribute values is rare
+        // and normally written as `&gt;`. Do not assume this is safe to run
+        // over arbitrary, untrusted HTML - it targets Maho's own rendered
+        // template output.
         $tagPattern = '#<(' . $tagAlternation . ')\b([^>]*)>#i';
 
         $result = preg_replace_callback(
@@ -214,6 +229,18 @@ class MageAustralia_CacheBuster_Helper_Data extends Mage_Core_Helper_Abstract
         if ($parsed === false) {
             return $url;
         }
+
+        // Same-origin guard. A URL carrying a host component is only bustable
+        // when that host is one of the store's own base-URL hosts (which also
+        // covers a dedicated static/media domain). Host-relative URLs - the
+        // common case in Maho output - have no host and always pass. Without
+        // this, a third-party CDN URL that happens to contain /skin/, /js/ or
+        // /media/ (e.g. https://some-cdn/js/jquery.js) would get the LOCAL
+        // file's filemtime appended.
+        if (isset($parsed['host']) && !in_array(strtolower($parsed['host']), $this->_getOwnHosts(), true)) {
+            return $url;
+        }
+
         $path = $parsed['path'] ?? '';
         if ($path === '') {
             return $url;
@@ -286,6 +313,49 @@ class MageAustralia_CacheBuster_Helper_Data extends Mage_Core_Helper_Abstract
 
         $mtime = @filemtime($real);
         return $this->_versionCache[$cacheKey] = ($mtime === false ? null : $mtime);
+    }
+
+    /**
+     * Lowercased set of hosts the store serves its own assets from: the hosts
+     * of the configured web / skin / media / js base URLs (secure + unsecure).
+     * Any asset URL Maho emits is built from one of these, so an absolute URL
+     * whose host is NOT in this set is not ours and must not be version-stamped
+     * with a local filemtime. Memoised per request.
+     *
+     * @return list<string>
+     */
+    private function _getOwnHosts(): array
+    {
+        if ($this->_ownHosts !== null) {
+            return $this->_ownHosts;
+        }
+
+        $hosts = [];
+        try {
+            $store = Mage::app()->getStore();
+            if (!$store instanceof Mage_Core_Model_Store) {
+                return $this->_ownHosts = [];
+            }
+            $types = [
+                Mage_Core_Model_Store::URL_TYPE_WEB,
+                Mage_Core_Model_Store::URL_TYPE_SKIN,
+                Mage_Core_Model_Store::URL_TYPE_MEDIA,
+                Mage_Core_Model_Store::URL_TYPE_JS,
+            ];
+            foreach ($types as $type) {
+                foreach ([false, true] as $secure) {
+                    $host = parse_url((string) $store->getBaseUrl($type, $secure), PHP_URL_HOST);
+                    if (is_string($host) && $host !== '') {
+                        $hosts[] = strtolower($host);
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // No store context (e.g. CLI): leave empty. Absolute URLs are then
+            // skipped; host-relative URLs still bust.
+        }
+
+        return $this->_ownHosts = array_values(array_unique($hosts));
     }
 
     /**
